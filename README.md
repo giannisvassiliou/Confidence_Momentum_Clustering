@@ -36,9 +36,6 @@ cd hybrid-saokm
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
-```
 
 ### Basic Usage
 
@@ -58,15 +55,6 @@ clusterer = HybridSAOKM(
     seed=42
 )
 
-# Process streaming data
-for x_t in data_stream:
-    # x_t should be L2-normalized
-    cluster_id = clusterer.assign(x_t)
-    clusterer.update(x_t, cluster_id)
-
-# Get final centroids
-centroids = clusterer.get_centroids()
-```
 
 ---
 
@@ -155,28 +143,15 @@ mkdir -p paper_results
 python AGNewsS.py --runs 30 --output_dir paper_results/agnews
 python ReutersS.py --runs 30 --output_dir paper_results/reuters
 python 20NewsgroupsS.py --runs 30 --output_dir paper_results/newsgroups
-python imagenetS.py --runs 30 --output_dir paper_results/imagenet
-python TwitterS.py --runs 30 --output_dir paper_results/twitter
+python imagenetS.py --runs 30 --data-root c:\imagenet-10 --max-classes 10   --images-per-class 800   --resize 224   --sample-size 5000  --train-size 3000   --eval-size 5000   --noise-sigma 0.12  --feature-dropout 0.2  --balance-lambda 0.15 --runs 2 --wilcoxon
+ --output_dir paper_results/imagenet
+
 
 # Statistical significance tests are computed automatically
 # Results will match Tables 2-10 in the paper
 ```
 
-### Expected Results (Mean ± Std)
 
-**AG News (Streaming)**
-- Hybrid SAOKM: NMI 0.214 ± 0.052, ARI 0.214 ± 0.063
-- OSKM: NMI 0.181 ± 0.059, ARI 0.177 ± 0.065
-
-**Reuters RCV1 (Streaming)**
-- Hybrid SAOKM: NMI 0.368 ± 0.034, ARI 0.307 ± 0.063
-- OSKM: NMI 0.308 ± 0.039, ARI 0.224 ± 0.071
-
-**ImageNet (Noisy Streaming, σ=0.12, p=0.2)**
-- Hybrid SAOKM: NMI 0.268 ± 0.029, ARI 0.215 ± 0.031
-- OSKM: NMI 0.202 ± 0.022, ARI 0.149 ± 0.023
-
----
 
 ## 🔧 Hyperparameter Tuning
 
@@ -201,43 +176,6 @@ config = {
 
 ---
 
-## 📖 Algorithm Details
-
-### Update Rules
-
-**OSKM (Baseline)**
-```python
-η_t = α / (1 + β*t)
-μ_i = μ_i + η_t * (x_t - μ_i)
-μ_i = μ_i / ||μ_i||
-```
-
-**SAOKM Original**
-```python
-c = μ_i^T x_t              # cosine similarity
-w = α * c^3                 # confidence weighting
-μ_i = w*x_t + (1-w)*μ_i
-μ_i = μ_i / ||μ_i||
-```
-
-**Hybrid SAOKM (Proposed)**
-```python
-c = μ_i^T x_t                          # cosine similarity
-η_t = α / (1 + β*t)                    # time-decayed learning rate
-g = x_t - μ_i                          # gradient
-γ_eff = γ * clip(c, c_fl, c_fu)       # confidence-gated momentum
-v_i = γ_eff * v_i + η_t * g           # momentum update
-μ_i = μ_i + v_i                        # centroid update
-μ_i = μ_i / ||μ_i||                    # normalize to unit sphere
-```
-
-### Complexity
-
-- **Time per update**: O(kd)
-- **Memory**: O(kd)
-- **Assignment**: O(kd) - compute k cosine similarities
-
----
 
 ## 📚 Citation
 
@@ -250,9 +188,6 @@ If you use this code in your research, please cite:
   journal={Under Review},
   year={2026}
 }
-```
-
----
 
 ## 📋 Requirements
 
@@ -272,16 +207,6 @@ Python 3.8 or higher is required.
 ```
 hybrid-saokm/
 ├── README.md                      # This file
-├── requirements.txt               # Python dependencies
-├── LICENSE                        # MIT License
-│
-├── algorithms/                    # Algorithm implementations
-│   ├── __init__.py
-│   ├── oskm.py                   # Online Spherical K-Means
-│   ├── saokm.py                  # Original SAOKM
-│   ├── hybrid_saokm.py           # Hybrid SAOKM (proposed)
-│   ├── ablations.py              # Ablation variants
-│   └── esa_stream.py             # ESA-Stream baseline
 │
 ├── experiments/                   # Experiment scripts
 │   ├── AGNewsS.py                # AG News experiments
@@ -289,40 +214,10 @@ hybrid-saokm/
 │   ├── 20NewsgroupsS.py          # 20 Newsgroups experiments
 │   ├── imagenetS.py              # ImageNet experiments
 │   └── TwitterS.py               # Synthetic Twitter stream
-│
-├── utils/                         # Utility functions
-│   ├── __init__.py
-│   ├── preprocessing.py          # Data preprocessing
-│   ├── metrics.py                # Evaluation metrics
-│   └── visualization.py          # Result plotting
-│
-├── results/                       # Output directory (created on first run)
-│   └── .gitkeep
-│
-└── paper/                         # Paper and supplementary materials
-    ├── clustering_2026_final.pdf # Main paper
-    └── appendix.pdf              # Extended appendix
-```
 
----
 
-## 🔬 Technical Details
 
-### Data Preprocessing Pipeline
-
-All text datasets follow a unified preprocessing pipeline:
-
-1. **TF-IDF Vectorization**
-   - Max features: 8000
-   - N-gram range: (1, 2)
-   - Stop words: English
-   - Max DF: 0.7, Min DF: 3
-
-2. **Dimensionality Reduction**
-   - Truncated SVD to 150 dimensions
-   - Preserves cosine similarity structure
-
-3. **L2 Normalization**
+ **L2 Normalization**
    - All vectors normalized to unit length
    - Data lies on unit hypersphere S^(d-1)
 
@@ -340,38 +235,7 @@ All text datasets follow a unified preprocessing pipeline:
 - No updates during evaluation
 - Reports converged model quality
 
-### Statistical Testing
 
-All experiments include:
-- **Wilcoxon Signed-Rank Tests**: Paired comparison across runs
-- **95% Confidence Intervals**: Normal approximation for mean
-- **Effect Size Reporting**: Mean ± standard deviation
-- **Significance Level**: α = 0.05 (one-sided tests)
-
----
-
-## 🛠️ Development
-
-### Running Tests
-
-```bash
-# Run unit tests (when available)
-python -m pytest tests/
-
-# Run single experiment in debug mode
-python AGNewsS.py --runs 1 --debug
-```
-
-### Contributing
-
-We welcome contributions! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Submit a pull request
-
----
 
 ## ❓ FAQ
 
@@ -395,14 +259,6 @@ A: While the algorithms are designed for online settings, you can process a stat
 
 A: Our ablation studies (Appendix 8) show that with proper hyperparameters, the method is relatively robust to initialization. Random and k-means++ initialization produce similar results once dynamics are tuned.
 
----
-
-## 📧 Contact
-
-For questions, issues, or collaboration inquiries:
-
-- **GitHub Issues**: [github.com/yourusername/hybrid-saokm/issues](https://github.com/yourusername/hybrid-saokm/issues)
-- **Email**: [Anonymized for review]
 
 ---
 
