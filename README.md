@@ -24,18 +24,6 @@ Official implementation of **Hybrid SAOKM** (Semantic Adaptive Online K-Means), 
 ---
 
 
-### Initialize the algorithm
-clusterer = HybridSAOKM(
-    k=4,                    # number of clusters
-    d=150,                  # embedding dimension
-    alpha=0.1,              # base learning rate
-    beta=0.0001,            # learning rate decay
-    gamma=0.9,              # momentum coefficient
-    c_fl=0.5,               # confidence lower bound
-    c_fu=1.0,               # confidence upper bound
-    seed=42
-)
-
 
 ---
 
