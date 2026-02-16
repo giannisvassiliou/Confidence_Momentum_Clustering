@@ -24,7 +24,7 @@ Official implementation of **Hybrid SAOKM** (Semantic Adaptive Online K-Means), 
 ---
 
 
-# Initialize the algorithm
+## Initialize the algorithm
 clusterer = HybridSAOKM(
     k=4,                    # number of clusters
     d=150,                  # embedding dimension
